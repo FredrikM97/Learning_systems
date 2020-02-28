@@ -104,7 +104,7 @@ def feature_selection(score_function, input_train, target_train, input_test, fea
     
     return input_train_fs, input_test_fs
 
-def parameter_tuning(estimators, param_grid, scoring, input_train_fs, target_train, k=10):
+def parameter_tuning(estimators, param_grid, scoring, input_train_fs, target_train, k=10, verbose=1):
     pipeline = Pipeline(estimators)
     grid = GridSearchCV(
         pipeline,
@@ -113,7 +113,8 @@ def parameter_tuning(estimators, param_grid, scoring, input_train_fs, target_tra
         return_train_score=True,
         refit=True,
         n_jobs=-1,
-        scoring=scoring
+        scoring=scoring,
+        verbose=verbose
     ) 
     grid.fit(input_train_fs,target_train)
     return grid
@@ -126,7 +127,12 @@ def get_model_info(grid):
     grid_df.sort_values(by=['mean_test_score']).tail()
     #print(grid_df)
 
-    print(f"Best score: {grid.best_score_}\nBest params {grid.best_params_}")
+    print(f"Best score: {grid.best_score_}\nBest params {grid.best_params_}\n")
+    
+    means = grid.cv_results_['mean_test_score']
+    stds = grid.cv_results_['std_test_score']
+    for mean, std, params in zip(means, stds, grid.cv_results_['params']):
+        print("%0.3f (+/-%0.03f)\n"% (mean, std * 2))
     
 def validate_curve(grid, input_train_fs, target_train,scoring=None, k=10):
     # Parameter to
@@ -135,7 +141,7 @@ def validate_curve(grid, input_train_fs, target_train,scoring=None, k=10):
     fig, axes = plt.subplots(3, 1, figsize=(10, 15))
     plot_learning_curve(model, model.__class__.__name__, input_train_fs, target_train, axes=axes[:], cv=k, scoring=scoring, n_jobs=-1)
     plt.show()
-    
+        
 def predict_model(grid, input_train_fs, target_train, input_test_fs):
     model = grid.best_params_['clf']
     model.fit(input_train_fs, target_train)
