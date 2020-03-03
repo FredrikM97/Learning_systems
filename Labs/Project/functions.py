@@ -12,15 +12,36 @@ from sklearn.pipeline import Pipeline
 from sklearn.model_selection import cross_val_score, GridSearchCV, learning_curve,validation_curve
 
 def get_data_info(input_train, target_train):
-    # The shape should look like (401,133) where 401 is the number of features and 133 is each row
+    """
+    Prints the shape and warn if input contains Nan, +inf or -inf
+    Expected output contains a tuple of (data points, features)
+    
+    Parameters
+    ----------
+    input_train: 2D-list 
+    target_train: 1D-list
+    
+    """
+    
     print("Length of",len(input_train))
     print("X.shape:", input_train.shape, "y.shape:", target_train.shape)    
     print("Contains Nan:",np.isnan(input_train).any(), np.isnan(target_train).any())
     print("Contains +inf:",np.isinf(input_train).any(),np.isinf(target_train).any())
     print("Contains -inf:",np.isneginf(input_train).any(),np.isneginf(target_train).any())
-    #pd.DataFrame(input_train).describe()
+    print(f"Input: {input_train[:2]} \nTarget: {target_train[:2]}")
+    
+    #print(pd.DataFrame(input_train).describe()-9
     
 def preprocessing(input_train, target_train, input_test):
+    """
+    Normalize the data
+    
+    Parameters
+    ----------
+    input_train: 2D-list 
+    target_train: 1D-list
+    test_train: 1D-list
+    """
     input_train_copy = deepcopy(input_train)
 
     # In case one-hot'
@@ -44,6 +65,26 @@ def preprocessing(input_train, target_train, input_test):
     return input_train,input_test,target_train,input_train_copy,input_train_copy_normalized
 
 def feature_reduction(input_train, target_train,input_train_copy):
+    """
+    Evaluate the input data with PCA transforms. returns the new shape and number of features
+    
+    Parameters
+    ----------
+    input_train: 2D-list
+    target_train: 2D-list
+    input_train_copy: 2D-list
+    
+    Return
+    ----------
+    feature_tot: int
+        Number of features
+    pca: Object
+        Contains the Pca fit base in input_train and target_train
+        
+    pca_input: 2D-list
+        The transformed input_train
+    """
+    
     pca = PCA(n_components = .95, svd_solver = 'full')
     pca.fit(input_train,y=target_train)
 
@@ -57,6 +98,13 @@ def feature_reduction(input_train, target_train,input_train_copy):
     return feature_tot, pca, pca_input
 
 def plot_feature_variance(pca_input):
+    """
+    Plot the feature variance 
+    
+    Parameters
+    ----------
+    pca_input: 2D-list
+    """
     cntItems = 1
     rowItems = 1
     fig, ax = plt.subplots(cntItems,rowItems,figsize=(5,5))
@@ -73,9 +121,18 @@ def plot_feature_variance(pca_input):
 
     plt.show()
 
-def plot_top_features(feature_tot,pca_input):
+def plot_top_features(feature_tot,pca_input, k=9):
+    """
+    Plot the top features up to k features
+    
+    Parameters
+    ----------
+    pca_input: 2D-list
+    k: int, Optional, default: 9
+        Number of wanted feature plots
+    """
     startpos = 1
-    cntPlots = length if (length := feature_tot) <= 9 else 9
+    cntPlots = length if (length := feature_tot) <= 9 else k
     rowItems = 3
     cntItems = ceil(cntPlots/rowItems)
 
@@ -91,6 +148,27 @@ def plot_top_features(feature_tot,pca_input):
     plt.show()
     
 def feature_selection(score_function, input_train, target_train, input_test, feature_tot='all'):
+    """
+    Select the best features (SelectKBest) based on score_function and dataset
+    
+    Parameters
+    ----------
+    score_function: str
+        Score function for SelectKBest
+    input_train: 2D-list
+    target_train: list
+    input_test: 2D-list
+    feature_tot: int, Optional, default='all'
+        Number of interesting features
+    
+    Return
+    ----------
+    input_train_fs: 2D-list
+        Reduced 2D-list with number of wanted features
+    input_test_fs: 2D-list
+        Reduced 2D-list with number of wanted features
+    """
+    
     # Using amount of features based on PCA information
     fs = SelectKBest(score_func=score_function, k=feature_tot)
     fs.fit(input_train, target_train)
@@ -104,7 +182,30 @@ def feature_selection(score_function, input_train, target_train, input_test, fea
     
     return input_train_fs, input_test_fs
 
-def parameter_tuning(estimators, param_grid, scoring, input_train_fs, target_train, k=10, verbose=1):
+def parameter_tuning(estimators, param_grid, input_train_fs, target_train,scoring='accuracy', k=10, verbose=1):
+    """
+    Select the best features (SelectKBest) based on score_function and dataset
+    
+    Parameters
+    ----------
+    estimators: dict
+        Models to train onto
+    param_grid: dict
+        Parameters based on the models
+    scoring: str, Optional, default='accuracy'
+        What kind on scoring method, default
+    input_train_fs: 2D-list
+    target_train: 2D-list
+    k, int, Optional, default=10
+        Number of k for cross validation
+    verbose,int, Optional, default=1
+        Debugging info level
+    
+    Return
+    ----------
+    grid: dict
+        Data of the GridSearchCV
+    """
     pipeline = Pipeline(estimators)
     grid = GridSearchCV(
         pipeline,
@@ -120,6 +221,14 @@ def parameter_tuning(estimators, param_grid, scoring, input_train_fs, target_tra
     return grid
 
 def get_model_info(grid):
+    """
+    Print info of the grid models and their hyperparameters.
+    
+    Parameters
+    ----------
+    grid: Dict
+    
+    """
     param_cols = ['']
     score_cols = ['mean_train_score', 'std_test_score','mean_test_score', 'std_test_score']
 
@@ -129,13 +238,38 @@ def get_model_info(grid):
 
     print(f"Best score: {grid.best_score_}\nBest params {grid.best_params_}\n")
     
-    means = grid.cv_results_['mean_test_score']
-    stds = grid.cv_results_['std_test_score']
-    for mean, std, params in zip(means, stds, grid.cv_results_['params']):
-        print("%0.3f (+/-%0.03f)\n"% (mean, std * 2))
     
+    #means = grid.cv_results_['mean_test_score']
+    #stds = grid.cv_results_['std_test_score']
+    #for mean, std, params in zip(means, stds, grid.cv_results_['params']):
+    #    print("%0.3f (+/-%0.03f)\n"% (mean, std * 2))
+    
+    df = pd.DataFrame(list(grid.cv_results_['params']))
+    ranking = grid.cv_results_['rank_test_score']
+    # The sorting is done based on the test_score of the models.
+    sorting = np.argsort(grid.cv_results_['rank_test_score'])
+
+    # Sort the lines based on the ranking of the models
+    df_final = df.iloc[sorting]
+
+    print(df_final.head())
+
 def validate_curve(grid, input_train_fs, target_train,scoring=None, k=10):
-    # Parameter to
+    """
+    Validate the best grid model based on training and crossvalidation.
+    
+    Parameters
+    ----------
+    grid: Object
+        GridSearchCV object
+    input_train_fs: 2D-list
+    target_train: 2D-list
+    scoring: str, Optional, default=None:
+        Evaluation metric for scoring
+    k: int,Optional,default=10
+        Number of k for crossvalidation 
+    
+    """
     param_range = np.arange(0.01, 50,5)
     model = grid.best_params_['clf']
     fig, axes = plt.subplots(3, 1, figsize=(10, 15))
@@ -143,6 +277,17 @@ def validate_curve(grid, input_train_fs, target_train,scoring=None, k=10):
     plt.show()
         
 def predict_model(grid, input_train_fs, target_train, input_test_fs):
+    """
+    Validate the best grid model based on training and crossvalidation.
+    
+    Parameters
+    ----------
+    grid: Object
+        GridSearchCV object
+    input_train_fs: 2D-list
+    target_train: 2D-list
+    input_test_fs: 2D-list
+    """
     model = grid.best_params_['clf']
     model.fit(input_train_fs, target_train)
     print(model.predict(input_test_fs))
