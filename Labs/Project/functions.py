@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pickle
 import matplotlib.pyplot as plt
 from math import ceil
 from copy import deepcopy
@@ -8,8 +9,15 @@ from sklearn.feature_selection import SelectKBest, f_regression, f_classif
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline
-
+from sklearn.metrics import confusion_matrix
+from mlxtend.plotting import plot_confusion_matrix
 from sklearn.model_selection import cross_val_score, GridSearchCV, learning_curve,validation_curve
+from sklearn.model_selection import train_test_split 
+from joblib import dump, load
+
+
+"""Global"""
+plt.rcParams['figure.figsize'] = [15, 15]
 
 def get_data_info(input_train, target_train):
     """
@@ -97,7 +105,7 @@ def feature_reduction(input_train, target_train,input_train_copy):
     
     return feature_tot, pca, pca_input
 
-def plot_feature_variance(pca_input):
+def plot_feature_variance(pca_input, filedir, taskname):
     """
     Plot the feature variance 
     
@@ -118,10 +126,11 @@ def plot_feature_variance(pca_input):
     plt.ylabel('cumulative explained variance');
     feature_variance = np.var(pca_input, 0)
     plt.plot(feature_variance)
-
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_variance", format='png')
+    
     plt.show()
 
-def plot_top_features(feature_tot,pca_input, k=9):
+def plot_top_features(feature_tot,pca_input, filedir, taskname,k=9):
     """
     Plot the top features up to k features
     
@@ -144,10 +153,10 @@ def plot_top_features(feature_tot,pca_input, k=9):
     for index in range(0,(cntPlots)):
         ax[axlist[index]].set_title("PCA - Histogram - Feature: " + str(index))
         ax[axlist[index]].hist(pca_input[:,index])
-
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_top", format='png')
     plt.show()
     
-def feature_selection(score_function, input_train, target_train, input_test, feature_tot='all'):
+def feature_selection(score_function, input_train, target_train, input_test, filedir, taskname, feature_tot='all'):
     """
     Select the best features (SelectKBest) based on score_function and dataset
     
@@ -177,7 +186,10 @@ def feature_selection(score_function, input_train, target_train, input_test, fea
 
     print(input_train.shape)
     plt.title("Feature selection")
+    plt.xlabel("Feature")
+    plt.ylabel("Frequency")
     plt.bar([i for i in range(len(fs.scores_))], fs.scores_)
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_select", format='png')
     plt.show()
     
     return input_train_fs, input_test_fs
@@ -254,7 +266,7 @@ def get_model_info(grid):
 
     print(df_final.head())
 
-def validate_curve(grid, input_train_fs, target_train,scoring=None, k=10):
+def validate_curve(grid, input_train_fs, target_train, filedir, taskname, scoring=None, k=10):
     """
     Validate the best grid model based on training and crossvalidation.
     
@@ -274,7 +286,23 @@ def validate_curve(grid, input_train_fs, target_train,scoring=None, k=10):
     model = grid.best_params_['clf']
     fig, axes = plt.subplots(3, 1, figsize=(10, 15))
     plot_learning_curve(model, model.__class__.__name__, input_train_fs, target_train, axes=axes[:], cv=k, scoring=scoring, n_jobs=-1)
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_validation", format='png')
     plt.show()
+    
+def save_model(model, filedir=None, taskname=None):
+    if not model:
+        print("Model is empty!!")
+    else:
+        file = filedir + "Models/" +  taskname + ".joblib"
+        print("Save model into:",file)
+        #with open(filedir + "Models/" +  taskname + ".joblib", 'wb') as file:
+        dump(model, file) 
+        
+def load_model(filedir=None, taskname=None):
+    file = filedir + "Models/" +  taskname + ".joblib"
+    print("Loading model: ",file)
+    return load(file) 
+
         
 def predict_model(grid, input_train_fs, target_train, input_test_fs):
     """
@@ -290,9 +318,39 @@ def predict_model(grid, input_train_fs, target_train, input_test_fs):
     """
     model = grid.best_params_['clf']
     model.fit(input_train_fs, target_train)
-    print(model.predict(input_test_fs))
-    return model
+    predict = model.predict(input_test_fs)
+    return model, predict
 
+def display_model_predict(grid, input_train, target_train, filedir=None, taskname=None):
+    X_train, X_test, y_train, y_test = train_test_split(input_train, target_train, test_size=0.33, random_state=42)
+    
+    
+    model, predict = predict_model(grid, X_train, y_train, X_test)
+    fig=plt.figure(figsize=(15, 10), dpi= 80, facecolor='w', edgecolor='k')
+    plt.title("Predictions vs Expected value")
+    plt.ylabel("Predicted value")
+    plt.xlabel('Feature')
+    
+    plt.scatter(range(len(predict)),predict, marker='.', label="Predicted",color='red')
+    plt.plot(y_test, label="Expected", marker='.', color='blue')
+    plt.legend()
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_validation", format='png')
+    plt.show()
+    
+def display_confusion_matrix(grid, input_train, target_train, filedir=None, taskname=None):
+    X_train, X_test, y_train, y_test = train_test_split(input_train, target_train, test_size=0.33, random_state=42)
+    
+    model, predict = predict_model(grid, X_train, y_train, X_test)
+    
+    cm = confusion_matrix(y_test,predict)
+    
+    fig, ax = plot_confusion_matrix(conf_mat=cm,
+                                show_absolute=True,
+                                show_normed=True,
+                                colorbar=True)
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_validation", format='png')
+    plt.show()
+    
 def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None, n_jobs=None, scoring=None, train_sizes=np.linspace(.1, 1.0, 5)):
     if axes is None:
         _, axes = plt.subplots(1, 3, figsize=(20, 5))
