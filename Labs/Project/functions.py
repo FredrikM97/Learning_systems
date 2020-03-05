@@ -126,7 +126,7 @@ def plot_feature_variance(pca_input, filedir, taskname):
     plt.ylabel('cumulative explained variance');
     feature_variance = np.var(pca_input, 0)
     plt.plot(feature_variance)
-    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_variance", format='png')
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_variance.png", format='png')
     
     plt.show()
 
@@ -153,7 +153,7 @@ def plot_top_features(feature_tot,pca_input, filedir, taskname,k=9):
     for index in range(0,(cntPlots)):
         ax[axlist[index]].set_title("PCA - Histogram - Feature: " + str(index))
         ax[axlist[index]].hist(pca_input[:,index])
-    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_top", format='png')
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_top.png", format='png')
     plt.show()
     
 def feature_selection(score_function, input_train, target_train, input_test, filedir, taskname, feature_tot='all'):
@@ -189,7 +189,7 @@ def feature_selection(score_function, input_train, target_train, input_test, fil
     plt.xlabel("Feature")
     plt.ylabel("Frequency")
     plt.bar([i for i in range(len(fs.scores_))], fs.scores_)
-    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_select", format='png')
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_select.png", format='png')
     plt.show()
     
     return input_train_fs, input_test_fs
@@ -286,7 +286,7 @@ def validate_curve(grid, input_train_fs, target_train, filedir, taskname, scorin
     model = grid.best_params_['clf']
     fig, axes = plt.subplots(3, 1, figsize=(10, 15))
     plot_learning_curve(model, model.__class__.__name__, input_train_fs, target_train, axes=axes[:], cv=k, scoring=scoring, n_jobs=-1)
-    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_validation", format='png')
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_validation.png", format='png')
     plt.show()
     
 def save_model(model, filedir=None, taskname=None):
@@ -303,7 +303,14 @@ def load_model(filedir=None, taskname=None):
     print("Loading model: ",file)
     return load(file) 
 
-        
+def save_prediction(predict, filedir, taskname):
+    if not len(predict):
+        print("Model is empty!!")
+    else:
+        file = filedir + "Predictions/" +  taskname + "_predict.txt"
+        with open(file, "w") as output:
+            output.write(str(predict))
+    
 def predict_model(grid, input_train_fs, target_train, input_test_fs):
     """
     Validate the best grid model based on training and crossvalidation.
@@ -334,7 +341,7 @@ def display_model_predict(grid, input_train, target_train, filedir=None, tasknam
     plt.scatter(range(len(predict)),predict, marker='.', label="Predicted",color='red')
     plt.plot(y_test, label="Expected", marker='.', color='blue')
     plt.legend()
-    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_validation", format='png')
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_prediction.png", format='png')
     plt.show()
     
 def display_confusion_matrix(grid, input_train, target_train, filedir=None, taskname=None):
@@ -348,9 +355,9 @@ def display_confusion_matrix(grid, input_train, target_train, filedir=None, task
                                 show_absolute=True,
                                 show_normed=True,
                                 colorbar=True)
-    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_validation", format='png')
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_prediction.png", format='png')
     plt.show()
-    
+
 def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None, n_jobs=None, scoring=None, train_sizes=np.linspace(.1, 1.0, 5)):
     if axes is None:
         _, axes = plt.subplots(1, 3, figsize=(20, 5))
