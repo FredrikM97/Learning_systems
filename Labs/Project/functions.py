@@ -14,10 +14,15 @@ from mlxtend.plotting import plot_confusion_matrix
 from sklearn.model_selection import cross_val_score, GridSearchCV, learning_curve,validation_curve
 from sklearn.model_selection import train_test_split 
 from joblib import dump, load
-
+import sys
+from warnings import filterwarnings
 
 """Global"""
 plt.rcParams['figure.figsize'] = [15, 15]
+pd.set_option('display.max_colwidth',None)
+plt.rcParams.update({'font.size': 14})
+np.set_printoptions(threshold=sys.maxsize)
+filterwarnings('ignore')
 
 def get_data_info(input_train, target_train):
     """
@@ -36,7 +41,7 @@ def get_data_info(input_train, target_train):
     print("Contains Nan:",np.isnan(input_train).any(), np.isnan(target_train).any())
     print("Contains +inf:",np.isinf(input_train).any(),np.isinf(target_train).any())
     print("Contains -inf:",np.isneginf(input_train).any(),np.isneginf(target_train).any())
-    print(f"Input: {input_train[:2]} \nTarget: {target_train[:2]}")
+    #print(f"Input: {input_train[:2]} \nTarget: {target_train[:2]}")
     
     #print(pd.DataFrame(input_train).describe()-9
     
@@ -60,7 +65,7 @@ def preprocessing(input_train, target_train, input_test):
         target_train = cols
 
 
-    print(len(target_train.T))
+    print("Length of input:", len(target_train.T))
     # Normalizing data
     scaler = StandardScaler()
     scaler.fit(input_train,y=target_train)
@@ -121,7 +126,7 @@ def plot_feature_variance(pca_input, filedir, taskname):
     else: axlist = list(product(range(cntItems),range(rowItems)))
 
     # Plot feature variance
-    plt.title("Feature variance")
+    plt.title(taskname + " - Feature variance")
     plt.xlabel('number of components')
     plt.ylabel('cumulative explained variance');
     feature_variance = np.var(pca_input, 0)
@@ -146,14 +151,18 @@ def plot_top_features(feature_tot,pca_input, filedir, taskname,k=9):
     cntItems = ceil(cntPlots/rowItems)
 
     fig, ax = plt.subplots(cntItems,rowItems,figsize=(15,10))
+    
     if cntItems == 0: axlist = range(rowItems)
     else: axlist = list(product(range(cntItems),range(rowItems)))
 
 
     for index in range(0,(cntPlots)):
-        ax[axlist[index]].set_title("PCA - Histogram - Feature: " + str(index))
+        ax[axlist[index]].set_title(taskname, "PCA - Histogram - Feature: " + str(index))
+        ax[axlist[index]].set_xlabel('Frequency')
+        ax[axlist[index]].set_ylabel('Value')
         ax[axlist[index]].hist(pca_input[:,index])
     if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_top.png", format='png')
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
     
 def feature_selection(score_function, input_train, target_train, input_test, filedir, taskname, feature_tot='all'):
@@ -181,19 +190,75 @@ def feature_selection(score_function, input_train, target_train, input_test, fil
     # Using amount of features based on PCA information
     fs = SelectKBest(score_func=score_function, k=feature_tot)
     fs.fit(input_train, target_train)
+    cols = fs.get_support(indices=True)
     input_train_fs = fs.transform(input_train)
     input_test_fs = fs.transform(input_test)
-
-    print(input_train.shape)
-    plt.title("Feature selection")
+    print(cols[:feature_tot])
+    
+    print("Shape of input:",input_train.shape)
+    plt.title(taskname + " - Feature selection")
     plt.xlabel("Feature")
     plt.ylabel("Frequency")
     plt.bar([i for i in range(len(fs.scores_))], fs.scores_)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_select.png", format='png')
     plt.show()
     
     return input_train_fs, input_test_fs
 
+def plot_feature_distribution(input_train_fs, filedir=None, taskname=None, datapoints=None):
+    """
+    Plot the distribution of features in boxplot
+    
+    Parameters
+    ----------
+    input_train_fs: 2D-list
+        feature vector
+    filedir: str, Optional, default=None
+        Directory for saving file
+    taskname: str, Optional, default=None
+        Name of file to save plot
+    datapoints: int, Optional, default=None
+        How many points that should be displayed
+    """
+    if not datapoints: datapoints= len(input_train_fs) 
+    dataset = pd.DataFrame(input_train_fs[:datapoints])
+    #figs = dataset.hist()
+    dataset.boxplot(grid=False)
+    plt.suptitle(taskname + " - Feature distribution")
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_distribution.png", format='png')
+    
+    plt.show()
+    
+def plot_feature_relationship(input_train_fs, filedir=None, taskname=None):
+    """
+    Plot the relationship and combination of features 
+    
+    Parameters
+    ----------
+    input_train_fs: 2D-list
+        feature vector
+    filedir: str, Optional, default=None
+        Directory for saving file
+    taskname: str, Optional, default=None
+        Name of file to save plot
+    """
+    from pandas.plotting import scatter_matrix
+    dataset = pd.DataFrame(input_train_fs)
+    dataset.hist(grid=False)
+    plt.suptitle(taskname + " - Feature relationship")
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_relationship.png", format='png')
+    plt.plot()
+    ax = scatter_matrix(dataset)
+    plt.suptitle(taskname + " - Feature relationship")
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    
+    if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_relationship_detailed.png", format='png')
+    plt.show()
+    
 def parameter_tuning(estimators, param_grid, input_train_fs, target_train,scoring='accuracy', k=10, verbose=1):
     """
     Select the best features (SelectKBest) based on score_function and dataset
@@ -285,11 +350,14 @@ def validate_curve(grid, input_train_fs, target_train, filedir, taskname, scorin
     param_range = np.arange(0.01, 50,5)
     model = grid.best_params_['clf']
     fig, axes = plt.subplots(3, 1, figsize=(10, 15))
-    plot_learning_curve(model, model.__class__.__name__, input_train_fs, target_train, axes=axes[:], cv=k, scoring=scoring, n_jobs=-1)
+    plot_learning_curve(model, taskname +" - "+model.__class__.__name__, input_train_fs, target_train, axes=axes[:], cv=k, scoring=scoring, n_jobs=-1)
     if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_validation.png", format='png')
     plt.show()
     
 def save_model(model, filedir=None, taskname=None):
+    """
+    Save model
+    """
     if not model:
         print("Model is empty!!")
     else:
@@ -299,11 +367,17 @@ def save_model(model, filedir=None, taskname=None):
         dump(model, file) 
         
 def load_model(filedir=None, taskname=None):
+    """
+    Load model
+    """
     file = filedir + "Models/" +  taskname + ".joblib"
     print("Loading model: ",file)
     return load(file) 
 
 def save_prediction(predict, filedir, taskname):
+    """
+    Save predictions
+    """
     if not len(predict):
         print("Model is empty!!")
     else:
@@ -328,23 +402,57 @@ def predict_model(grid, input_train_fs, target_train, input_test_fs):
     predict = model.predict(input_test_fs)
     return model, predict
 
-def display_model_predict(grid, input_train, target_train, filedir=None, taskname=None):
+def display_model_predict(grid, input_train, target_train, filedir=None, taskname=None, datapoints=None):
+    """
+    Display prediction in scatter and line plot
+    
+    Parameters
+    ----------
+    grid: Object
+        GridSearchCV object
+    input_train_fs: 2D-list
+    target_train: 2D-list
+    filedir: str, Optional, default=None
+        Directory for file
+    taskname: str, Optional, default=None
+        Name of file
+    datapoints: str, Optional, default=None
+        How many datapoints that should be displayed in plot
+    """
     X_train, X_test, y_train, y_test = train_test_split(input_train, target_train, test_size=0.33, random_state=42)
     
-    
     model, predict = predict_model(grid, X_train, y_train, X_test)
-    fig=plt.figure(figsize=(15, 10), dpi= 80, facecolor='w', edgecolor='k')
-    plt.title("Predictions vs Expected value")
+    
+    if not datapoints: datapoints = len(predict)
+
+    fig=plt.figure(figsize=(15, 10), dpi=80, facecolor='w', edgecolor='k')
+    plt.title(taskname +" - Predictions vs Expected value")
     plt.ylabel("Predicted value")
     plt.xlabel('Feature')
     
-    plt.scatter(range(len(predict)),predict, marker='.', label="Predicted",color='red')
-    plt.plot(y_test, label="Expected", marker='.', color='blue')
+    plt.scatter(range(datapoints),predict[:datapoints], marker='.', label="Predicted",color='red')
+    plt.plot(y_test[:datapoints], label="Expected", color='blue')
     plt.legend()
     if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_prediction.png", format='png')
     plt.show()
     
 def display_confusion_matrix(grid, input_train, target_train, filedir=None, taskname=None):
+    """
+    Display prediction in confusion matrix
+    
+    Parameters
+    ----------
+    grid: Object
+        GridSearchCV object
+    input_train_fs: 2D-list
+    target_train: 2D-list
+    filedir: str, Optional, default=None
+        Directory for file
+    taskname: str, Optional, default=None
+        Name of file
+    datapoints: str, Optional, default=350
+        How many datapoints that should be displayed in plot
+    """
     X_train, X_test, y_train, y_test = train_test_split(input_train, target_train, test_size=0.33, random_state=42)
     
     model, predict = predict_model(grid, X_train, y_train, X_test)
