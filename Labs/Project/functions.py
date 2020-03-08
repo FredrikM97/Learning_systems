@@ -328,8 +328,8 @@ def get_model_info(grid):
 
     # Sort the lines based on the ranking of the models
     df_final = df.iloc[sorting]
-
-    print(df_final.head())
+    frame = pd.DataFrame(grid.cv_results_).loc[:, ['mean_test_score', 'std_test_score', 'rank_test_score', 'params']].sort_values(by='rank_test_score')
+    print(frame.head())
 
 def validate_curve(grid, input_train_fs, target_train, filedir, taskname, scoring=None, k=10):
     """
