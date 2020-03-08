@@ -313,7 +313,7 @@ def get_model_info(grid):
     grid_df.sort_values(by=['mean_test_score']).tail()
     #print(grid_df)
 
-    print(f"Best score: {grid.best_score_}\nBest params {grid.best_params_}\n")
+    #print(f"Best score: {grid.best_score_}\nBest params {grid.best_params_}\n")
     
     
     #means = grid.cv_results_['mean_test_score']
