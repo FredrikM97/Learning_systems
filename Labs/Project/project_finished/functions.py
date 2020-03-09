@@ -16,6 +16,7 @@ from sklearn.model_selection import train_test_split
 from joblib import dump, load
 import sys
 from warnings import filterwarnings
+from pandas.plotting import scatter_matrix
 
 """Global"""
 plt.rcParams['figure.figsize'] = [15, 15]
@@ -244,7 +245,7 @@ def plot_feature_relationship(input_train_fs, filedir=None, taskname=None):
     taskname: str, Optional, default=None
         Name of file to save plot
     """
-    from pandas.plotting import scatter_matrix
+
     dataset = pd.DataFrame(input_train_fs)
     dataset.hist(grid=False)
     plt.suptitle(taskname + " - Feature relationship")
