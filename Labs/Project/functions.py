@@ -226,6 +226,8 @@ def plot_feature_distribution(input_train_fs, filedir=None, taskname=None, datap
     dataset = pd.DataFrame(input_train_fs[:datapoints])
     #figs = dataset.hist()
     dataset.boxplot(grid=False)
+    plt.xlabel("Features")
+    plt.ylabel("Data values")
     plt.suptitle(taskname + " - Feature distribution")
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_distribution.png", format='png')
@@ -245,7 +247,7 @@ def plot_feature_relationship(input_train_fs, filedir=None, taskname=None):
     taskname: str, Optional, default=None
         Name of file to save plot
     """
-
+    print("x-axis contain features and y is frequency of values")
     dataset = pd.DataFrame(input_train_fs)
     dataset.hist(grid=False)
     plt.suptitle(taskname + " - Feature relationship")
@@ -255,6 +257,7 @@ def plot_feature_relationship(input_train_fs, filedir=None, taskname=None):
     plt.plot()
     ax = scatter_matrix(dataset)
     plt.suptitle(taskname + " - Feature relationship")
+    
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     
     if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_f_relationship_detailed.png", format='png')
@@ -352,7 +355,9 @@ def validate_curve(grid, input_train_fs, target_train, filedir, taskname, scorin
     model = grid.best_params_['clf']
     fig, axes = plt.subplots(3, 1, figsize=(10, 15))
     plot_learning_curve(model, taskname +" - "+model.__class__.__name__, input_train_fs, target_train, axes=axes[:], cv=k, scoring=scoring, n_jobs=-1)
+    fig.tight_layout()
     if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_validation.png", format='png')
+    
     plt.show()
     
 def save_model(model, filedir=None, taskname=None):
@@ -428,7 +433,7 @@ def display_model_predict(grid, input_train, target_train, filedir=None, tasknam
 
     fig=plt.figure(figsize=(15, 10), dpi=80, facecolor='w', edgecolor='k')
     plt.title(taskname +" - Predictions vs Expected value")
-    plt.ylabel("Predicted value")
+    plt.ylabel("Data Value")
     plt.xlabel('Feature')
     
     plt.scatter(range(datapoints),predict[:datapoints], marker='.', label="Predicted",color='red')
@@ -464,13 +469,15 @@ def display_confusion_matrix(grid, input_train, target_train, filedir=None, task
                                 show_absolute=True,
                                 show_normed=True,
                                 colorbar=True)
+    ax.set_title("Confusion matrix - "  + taskname)
     if taskname and filedir: plt.savefig(filedir +"Pictures/"+ taskname + "_prediction.png", format='png')
     plt.show()
 
 def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None, n_jobs=None, scoring=None, train_sizes=np.linspace(.1, 1.0, 5)):
     if axes is None:
-        _, axes = plt.subplots(1, 3, figsize=(20, 5))
-
+        fig, axes = plt.subplots(1, 3, figsize=(20, 5))
+        
+        
     axes[0].set_title(title)
     if ylim is not None:
         axes[0].set_ylim(*ylim)
@@ -505,6 +512,7 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None, n
                  label="Training score")
     axes[0].plot(train_sizes, test_scores_mean, 'o-', color="g",
                  label="Cross-validation score")
+    axes[0].set_xlabel("Data point")
     axes[0].legend(loc="best")
 
     # Plot n_samples vs fit_times
@@ -512,7 +520,7 @@ def plot_learning_curve(estimator, title, X, y, axes=None, ylim=None, cv=None, n
     axes[1].plot(train_sizes, fit_times_mean, 'o-')
     axes[1].fill_between(train_sizes, fit_times_mean - fit_times_std,
                          fit_times_mean + fit_times_std, alpha=0.1)
-    axes[1].set_xlabel("")
+    axes[1].set_xlabel("Data point")
     axes[1].set_ylabel("fit_times")
     axes[1].set_title("Scalability of the model")
 
