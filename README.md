@@ -1,2 +1,2 @@
-# Learning_systems
-Course in learning systems including machine learning
+# Learning systems
+Learning systems Course at Halmstad Univeristy, spring 2020
